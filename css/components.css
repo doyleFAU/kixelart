@@ -25,12 +25,12 @@
   background: var(--surface-2);
 }
 
-.btn:hover { background: #2e2e3c; }
+.btn:hover { background: var(--surface-hover); }
 .btn:active { transform: scale(0.97); }
 
 .btn-primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .btn-primary:hover { background: var(--accent-hover); }
@@ -41,7 +41,7 @@
   color: var(--danger);
 }
 
-.btn-danger:hover { background: rgba(224, 85, 85, 0.12); }
+.btn-danger:hover { background: var(--danger-hover); }
 
 .btn-ghost {
   background: transparent;
@@ -65,6 +65,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.btn-theme {
+  min-width: 72px;
+  font-size: 12px;
 }
 
 .field {
@@ -142,7 +147,7 @@
 }
 
 .palette-swatch.active {
-  border-color: #fff;
+  border-color: var(--swatch-ring);
   box-shadow: 0 0 0 1px var(--accent);
 }
 

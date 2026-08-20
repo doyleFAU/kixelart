@@ -51,8 +51,8 @@ export function applyProjectData(data) {
   state.pixels = clonePixels(data.pixels);
   state.palette = data.palette || [...DEFAULT_PALETTE];
   state.recentColors = data.recentColors || [];
-  state.currentColor = data.currentColor || "#ff0040";
-  state.secondaryColor = data.secondaryColor || "#0066ff";
+  state.currentColor = data.currentColor || "#4a8f65";
+  state.secondaryColor = data.secondaryColor || "#8b6914";
   state.showGrid = data.showGrid !== false;
   state.mirrorX = !!data.mirrorX;
   state.mirrorY = !!data.mirrorY;

@@ -4,7 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kixelart</title>
-  <link rel="stylesheet" href="css/main.css">
+  <script>
+    (function () {
+      if (localStorage.getItem("kixelart-theme") === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="css/main.css?v=4">
 </head>
 <body>
   <div class="app">
@@ -14,6 +21,7 @@
         <h1>Kixelart</h1>
       </div>
       <div class="header-actions">
+        <button id="btn-theme" class="btn btn-ghost btn-theme" type="button">☾ Dark</button>
         <button id="btn-new" class="btn btn-ghost" title="New canvas">New</button>
         <button id="btn-import" class="btn btn-ghost" title="Import PNG">Import</button>
         <input type="file" id="file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden>

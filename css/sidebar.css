@@ -20,11 +20,11 @@
 }
 
 .tool-btn svg { width: 20px; height: 20px; }
-.tool-btn:hover { color: var(--text); background: #2a2a38; }
+.tool-btn:hover { color: var(--text); background: var(--surface-hover); }
 .tool-btn.active {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(124, 108, 240, 0.12);
+  background: var(--accent-muted);
 }
 
 .brush-size-field { margin-top: 10px; margin-bottom: 0; }
@@ -42,11 +42,11 @@
   cursor: pointer;
 }
 
-.size-btn:hover { color: var(--text); border-color: #555566; }
+.size-btn:hover { color: var(--text); border-color: var(--border); }
 .size-btn.active {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(124, 108, 240, 0.12);
+  background: var(--accent-muted);
 }
 
 .color-wheel-wrap {
@@ -194,13 +194,13 @@
 }
 
 .gallery-item:hover {
-  background: #2a2a38;
+  background: var(--surface-hover);
   border-color: var(--border);
 }
 
 .gallery-item.active {
   border-color: var(--accent);
-  background: rgba(124, 108, 240, 0.1);
+  background: var(--accent-muted);
 }
 
 .gallery-thumb {
@@ -210,7 +210,7 @@
   border: 1px solid var(--border);
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  background: #2a2a35;
+  background: var(--thumb-bg);
   flex-shrink: 0;
   object-fit: contain;
 }
@@ -245,7 +245,7 @@
 }
 
 .gallery-delete:hover {
-  background: rgba(224, 85, 85, 0.15);
+  background: var(--danger-hover);
   color: var(--danger);
 }
 

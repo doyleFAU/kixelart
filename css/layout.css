@@ -20,9 +20,11 @@
 }
 
 .logo h1 {
-  font-size: 18px;
+  font-family: "Iowan Old Style", Palatino, Georgia, "Times New Roman", serif;
+  font-size: 19px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
+  color: var(--text);
 }
 
 .header-actions {
@@ -54,6 +56,7 @@
   border-radius: var(--radius);
   padding: 14px;
   margin-bottom: 8px;
+  border: 1px solid var(--border-muted);
 }
 
 .panel h2 {
@@ -96,8 +99,8 @@
   color: var(--text-muted);
 }
 
-.save-status.unsaved { color: #f0a050; }
-.save-status.saved { color: #60c060; }
+.save-status.unsaved { color: var(--warning); }
+.save-status.saved { color: var(--success); }
 
 .canvas-footer {
   display: flex;
@@ -139,5 +142,5 @@
   image-rendering: crisp-edges;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: #2a2a35;
+  background: var(--thumb-bg);
 }

@@ -8,14 +8,14 @@ export const STORAGE_KEY = "kixelart-v1";
 export const LEGACY_STORAGE_KEY = "pixel-studio-v1";
 export const GALLERY_INDEX_KEY = "kixelart-gallery-index";
 export const GALLERY_ITEM_PREFIX = "kixelart-gallery-";
+export const THEME_STORAGE_KEY = "kixelart-theme";
 
 export const DEFAULT_PALETTE = [
-  "#000000", "#ffffff", "#ff0040", "#ff6b00", "#ffcc00", "#88ff00",
-  "#00ff88", "#00ccff", "#0066ff", "#8800ff", "#ff00cc", "#8b4513",
-  "#c0c0c0", "#808080", "#404040", "#ff8888", "#88ff88", "#8888ff",
-  "#ffff88", "#ff88ff", "#88ffff", "#2d1b0e", "#4a3728", "#6b5344",
-  "#1a1a2e", "#16213e", "#0f3460", "#533483", "#e94560", "#f5f5dc",
-  "#deb887", "#d2691e", "#228b22", "#006400", "#191970", "#483d8b",
+  "#000000", "#f5f0e1", "#c47058", "#c4a858", "#d4b896", "#8b6914",
+  "#4a8f65", "#72c19a", "#2d5a3d", "#5c7a6a", "#5c4a32", "#8b7355",
+  "#c0c0c0", "#808080", "#404040", "#a8c4a0", "#6a9e78", "#4d5e52",
+  "#e8d4b8", "#b8956a", "#7ec4a0", "#2c3e30", "#1a211c", "#3d6b4f",
+  "#deb887", "#d2691e", "#228b22", "#006400", "#4a3728", "#6b5344",
 ];
 
 export const ZOOM_MIN = 4;

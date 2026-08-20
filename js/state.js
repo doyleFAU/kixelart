@@ -5,8 +5,8 @@ import { DEFAULT_PALETTE } from "./config.js";
 export const state = {
   gridSize: 32,
   pixels: [],
-  currentColor: "#ff0040",
-  secondaryColor: "#0066ff",
+  currentColor: "#4a8f65",
+  secondaryColor: "#8b6914",
   currentTool: "brush",
   brushSize: 1,
   zoom: 16,

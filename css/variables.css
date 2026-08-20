@@ -1,13 +1,57 @@
-:root {
-  --bg: #0f0f12;
-  --surface: #1a1a22;
-  --surface-2: #242430;
-  --border: #333344;
-  --text: #e8e8f0;
-  --text-muted: #8888a0;
-  --accent: #7c6cf0;
-  --accent-hover: #9588f5;
-  --danger: #e05555;
+:root,
+[data-theme="light"] {
+  /* Vintage botanical — light mint & parchment */
+  --bg: #d4e4d8;
+  --surface: #e8f2ea;
+  --surface-2: #f2f8f4;
+  --surface-hover: #c8ddd0;
+  --border: #8faf96;
+  --border-muted: #a8c4b0;
+  --text: #2a3d32;
+  --text-muted: #5a6e62;
+  --accent: #3d8f62;
+  --accent-hover: #4fa876;
+  --accent-muted: rgba(61, 143, 98, 0.16);
+  --on-accent: #f5f0e1;
+  --danger: #b85c48;
+  --warning: #a88840;
+  --success: #4a8f65;
+  --danger-hover: rgba(184, 92, 72, 0.12);
+  --swatch-ring: #ffffff;
+
+  --canvas-bg: #b0c8b8;
+  --canvas-pattern: #a3bface;
+  --checker-light: #c4d8ca;
+  --checker-dark: #b0c4b4;
+  --thumb-bg: #c4d8ca;
+
   --radius: 10px;
   --sidebar-width: 260px;
+}
+
+[data-theme="dark"] {
+  /* Forest cabin — dark mint & moss */
+  --bg: #1a211c;
+  --surface: #232b26;
+  --surface-2: #2c3630;
+  --surface-hover: #354038;
+  --border: #4d5e52;
+  --border-muted: #3d4d42;
+  --text: #e8ebe4;
+  --text-muted: #8fa396;
+  --accent: #72c19a;
+  --accent-hover: #8ed4ad;
+  --accent-muted: rgba(114, 193, 154, 0.14);
+  --on-accent: #1a211c;
+  --danger: #c47058;
+  --warning: #c4a858;
+  --success: #6a9e78;
+  --danger-hover: rgba(196, 112, 88, 0.15);
+  --swatch-ring: #ffffff;
+
+  --canvas-bg: #141a16;
+  --canvas-pattern: #1c241f;
+  --checker-light: #2a3530;
+  --checker-dark: #323f38;
+  --thumb-bg: #2a3530;
 }

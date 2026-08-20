@@ -14,6 +14,7 @@ import { bindPointerInput } from "./input/pointer.js";
 import { bindKeyboard } from "./input/keyboard.js";
 import { bindFileIO } from "./io/files.js";
 import { bindUI, restoreGallerySelection } from "./ui/bindings.js";
+import { bindTheme } from "./ui/theme.js";
 import { state } from "./state.js";
 import { el } from "./elements.js";
 
@@ -24,7 +25,7 @@ function init() {
   const restored = loadProject();
   if (!restored) {
     createGrid(32);
-    setColor("#ff0040");
+    setColor("#4a8f65");
     el.secondaryColor.style.background = state.secondaryColor;
     renderPalette();
     renderRecentColors();
@@ -37,6 +38,7 @@ function init() {
   bindKeyboard();
   bindFileIO();
   bindUI();
+  bindTheme();
 
   updateCursorMode();
   renderGallery();

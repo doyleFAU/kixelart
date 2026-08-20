@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kixelart</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">◼</span>
+        <h1>Kixelart</h1>
+      </div>
+      <div class="header-actions">
+        <button id="btn-new" class="btn btn-ghost" title="New canvas">New</button>
+        <button id="btn-import" class="btn btn-ghost" title="Import PNG">Import</button>
+        <input type="file" id="file-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+        <button id="btn-undo" class="btn btn-ghost" title="Undo (Ctrl+Z)">↩ Undo</button>
+        <button id="btn-redo" class="btn btn-ghost" title="Redo (Ctrl+Y)">↪ Redo</button>
+        <button id="btn-clear" class="btn btn-danger" title="Erase all pixels">Erase All</button>
+        <select id="export-scale" class="select-inline" title="Export scale">
+          <option value="1">1×</option>
+          <option value="2">2×</option>
+          <option value="4" selected>4×</option>
+          <option value="8">8×</option>
+          <option value="16">16×</option>
+        </select>
+        <button id="btn-download" class="btn btn-primary">Download PNG</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>Tools</h2>
+          <div class="tool-grid">
+            <button class="tool-btn active" data-tool="brush" title="Brush (B)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+              Brush
+            </button>
+            <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l10-10 7 7-4 4"/><path d="M6.5 17.5l4-4"/></svg>
+              Eraser
+            </button>
+            <button class="tool-btn" data-tool="line" title="Line (L)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 19L19 5"/></svg>
+              Line
+            </button>
+            <button class="tool-btn" data-tool="rect" title="Rectangle (R). Hold Shift to fill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16"/></svg>
+              Rect
+            </button>
+            <button class="tool-btn" data-tool="circle" title="Circle (O). Hold Shift to fill">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>
+              Circle
+            </button>
+            <button class="tool-btn" data-tool="replace" title="Replace color (T)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              Replace
+            </button>
+            <button class="tool-btn" data-tool="fill" title="Fill bucket (F)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11l-8-8-8.6 8.6a2 2 0 000 2.8l5.2 5.2a2 2 0 002.8 0L19 11z"/><path d="M5 21h14"/><path d="M18 21l2-2"/></svg>
+              Fill
+            </button>
+            <button class="tool-btn" data-tool="picker" title="Eyedropper (I)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 22l1-1h3l9-9"/><path d="M12 6l6-6 4 4-6 6-4-4z"/></svg>
+              Pick
+            </button>
+            <button class="tool-btn" data-tool="hand" title="Pan / Hand (H)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 00-4 0v5"/><path d="M14 10V4a2 2 0 00-4 0v6"/><path d="M10 10.5V5a2 2 0 00-4 0v10"/><path d="M6 15v1a6 6 0 006 6h1a5 5 0 005-5v-3"/></svg>
+              Hand
+            </button>
+          </div>
+          <label class="field brush-size-field">
+            <span>Brush size</span>
+            <div class="brush-size-btns">
+              <button class="size-btn active" data-size="1">1</button>
+              <button class="size-btn" data-size="2">2</button>
+              <button class="size-btn" data-size="3">3</button>
+            </div>
+          </label>
+        </section>
+
+        <section class="panel">
+          <h2>Color Wheel</h2>
+          <div class="color-wheel-wrap">
+            <canvas id="color-wheel" width="180" height="180"></canvas>
+            <div class="wheel-cursor" id="wheel-cursor"></div>
+          </div>
+          <div class="brightness-slider">
+            <label for="brightness">Brightness</label>
+            <input type="range" id="brightness" min="0" max="100" value="100">
+          </div>
+          <div class="current-color-row">
+            <div id="current-color" class="current-color" title="Primary color"></div>
+            <button id="btn-swap-color" class="btn-swap" title="Swap colors (X)">⇄</button>
+            <div id="secondary-color" class="current-color secondary" title="Secondary color (right-click to use)"></div>
+            <input type="text" id="hex-input" class="hex-input" maxlength="7" spellcheck="false">
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Recent Colors</h2>
+          <div id="recent-colors" class="palette recent-palette"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Palette</h2>
+          <div id="palette" class="palette"></div>
+          <button id="btn-add-color" class="btn btn-small">+ Add current color</button>
+        </section>
+
+        <section class="panel">
+          <h2>Canvas</h2>
+          <label class="field">
+            <span>Size</span>
+            <select id="canvas-size">
+              <option value="16">16 × 16</option>
+              <option value="32" selected>32 × 32</option>
+              <option value="64">64 × 64</option>
+              <option value="128">128 × 128</option>
+            </select>
+          </label>
+          <label class="checkbox-field">
+            <input type="checkbox" id="show-grid" checked>
+            <span>Show grid (G)</span>
+          </label>
+          <label class="checkbox-field">
+            <input type="checkbox" id="mirror-x">
+            <span>Mirror horizontally</span>
+          </label>
+          <label class="checkbox-field">
+            <input type="checkbox" id="mirror-y">
+            <span>Mirror vertically</span>
+          </label>
+          <label class="checkbox-field">
+            <input type="checkbox" id="export-transparent" checked>
+            <span>Transparent PNG export</span>
+          </label>
+          <div class="transform-btns">
+            <button id="btn-flip-h" class="btn btn-ghost btn-small">Flip ↔</button>
+            <button id="btn-flip-v" class="btn btn-ghost btn-small">Flip ↕</button>
+            <button id="btn-rotate" class="btn btn-ghost btn-small">Rotate 90°</button>
+          </div>
+        </section>
+
+        <section class="panel gallery-panel">
+          <h2>My Art</h2>
+          <p class="gallery-desc">Save pieces here and open them anytime.</p>
+          <div class="save-art-row">
+            <input type="text" id="save-name" class="save-name-input" placeholder="Art name…" maxlength="40">
+            <button id="btn-save-art" class="btn btn-primary btn-small">Save</button>
+          </div>
+          <button id="btn-new-art" class="btn btn-ghost btn-small gallery-new-btn">+ Save as new piece</button>
+          <div id="gallery-list" class="gallery-list"></div>
+          <p id="gallery-empty" class="gallery-empty">No saved art yet</p>
+        </section>
+
+        <section class="panel shortcuts-panel">
+          <h2>Shortcuts</h2>
+          <ul class="shortcuts-list">
+            <li><kbd>B</kbd> Brush</li>
+            <li><kbd>E</kbd> Eraser</li>
+            <li><kbd>L</kbd> Line</li>
+            <li><kbd>R</kbd> Rectangle</li>
+            <li><kbd>O</kbd> Circle</li>
+            <li><kbd>T</kbd> Replace color</li>
+            <li><kbd>F</kbd> Fill</li>
+            <li><kbd>I</kbd> Eyedropper</li>
+            <li><kbd>H</kbd> Hand</li>
+            <li><kbd>G</kbd> Toggle grid</li>
+            <li><kbd>X</kbd> Swap colors</li>
+            <li><kbd>[</kbd> <kbd>]</kbd> Brush size</li>
+          </ul>
+        </section>
+      </aside>
+
+      <div class="canvas-area">
+        <div class="zoom-controls">
+          <button id="btn-zoom-out" class="btn btn-icon" title="Zoom out">−</button>
+          <span id="zoom-label">16px</span>
+          <button id="btn-zoom-in" class="btn btn-icon" title="Zoom in">+</button>
+          <button id="btn-zoom-fit" class="btn btn-ghost btn-small">Fit</button>
+          <button id="btn-zoom-1x" class="btn btn-ghost btn-small">1:1</button>
+          <span id="cursor-pos" class="cursor-pos">—</span>
+          <span id="save-status" class="save-status">Saved</span>
+        </div>
+        <div class="canvas-scroll" id="canvas-scroll">
+          <div class="canvas-wrap" id="canvas-wrap">
+            <div class="checkerboard" id="checkerboard"></div>
+            <canvas id="pixel-canvas"></canvas>
+            <canvas id="preview-overlay" class="preview-overlay"></canvas>
+            <canvas id="grid-overlay" class="grid-overlay"></canvas>
+          </div>
+        </div>
+        <div class="canvas-footer">
+          <p class="hint">Scroll to zoom · Hand (H) or Space+drag to pan · Shift = filled shapes · Right-click = secondary color</p>
+          <div class="preview-box">
+            <span class="preview-label">1× Preview</span>
+            <canvas id="preview-canvas" width="64" height="64"></canvas>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js?v=5"></script>
+</body>
+</html>

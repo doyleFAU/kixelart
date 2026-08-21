@@ -17,6 +17,10 @@ import {
 } from "../utils/security.js";
 import { render, fitZoom } from "../renderer.js";
 import { applyProjectData, scheduleSave } from "./project.js";
+import {
+  pushGalleryItemToCloud,
+  deleteGalleryItemFromCloud,
+} from "../supabase/gallery-sync.js";
 
 function getGalleryIndex() {
   return validateGalleryIndex(localStorage.getItem(GALLERY_INDEX_KEY));
@@ -131,6 +135,10 @@ export function saveToGallery() {
     scheduleSave();
     el.saveStatus.textContent = isUpdate ? "Art updated" : "Art saved";
     el.saveStatus.className = "save-status saved";
+    pushGalleryItemToCloud(item).catch(() => {
+      el.saveStatus.textContent = "Saved locally (cloud sync failed)";
+      el.saveStatus.className = "save-status unsaved";
+    });
   } catch {
     alert("Could not save — browser storage may be full. Try deleting old saves.");
   }
@@ -171,6 +179,10 @@ function deleteFromGallery(id, e) {
 
   renderGallery();
   scheduleSave();
+  deleteGalleryItemFromCloud(safeId).catch(() => {
+    el.saveStatus.textContent = "Deleted locally (cloud sync failed)";
+    el.saveStatus.className = "save-status unsaved";
+  });
 }
 
 export function renderGallery() {

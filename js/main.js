@@ -15,6 +15,7 @@ import { bindKeyboard } from "./input/keyboard.js";
 import { bindFileIO } from "./io/files.js";
 import { bindUI, restoreGallerySelection } from "./ui/bindings.js";
 import { bindTheme } from "./ui/theme.js";
+import { initAuth } from "./supabase/auth.js";
 import { state } from "./state.js";
 import { el } from "./elements.js";
 
@@ -39,6 +40,7 @@ function init() {
   bindFileIO();
   bindUI();
   bindTheme();
+  initAuth();
 
   updateCursorMode();
   renderGallery();

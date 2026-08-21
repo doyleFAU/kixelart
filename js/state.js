@@ -32,6 +32,9 @@ export const state = {
   drawRaf: null,
   eraseConfirmOpen: false,
 
+  // auth (Supabase)
+  authUser: null,
+
   // color wheel
   wheelHue: 0,
   wheelSat: 1,

@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=(), usb=()">
   <title>Kixelart</title>
   <script src="js/theme-init.js"></script>
-  <link rel="stylesheet" href="css/main.css?v=5">
+  <link rel="stylesheet" href="css/main.css?v=6">
 </head>
 <body>
   <div class="app">
@@ -153,6 +153,13 @@
 
         <section class="panel gallery-panel">
           <h2>My Art</h2>
+          <div id="auth-bar" class="auth-bar" hidden>
+            <p id="auth-status" class="auth-status">Sign in to sync My Art across devices</p>
+            <div class="auth-btns">
+              <button id="btn-sign-in" class="btn btn-ghost btn-small" type="button">Sign in with GitHub</button>
+              <button id="btn-sign-out" class="btn btn-ghost btn-small" type="button" hidden>Sign out</button>
+            </div>
+          </div>
           <p class="gallery-desc">Save pieces here and open them anytime.</p>
           <div class="save-art-row">
             <input type="text" id="save-name" class="save-name-input" placeholder="Art name…" maxlength="40">

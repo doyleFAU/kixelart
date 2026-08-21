@@ -27,6 +27,7 @@ export function drawGridOverlay() {
   el.previewOverlay.style.height = `${displaySize}px`;
 
   el.gridCtx.clearRect(0, 0, displaySize, displaySize);
+  el.gridOverlay.style.visibility = state.showGrid ? "visible" : "hidden";
   if (!state.showGrid) return;
 
   el.gridCtx.strokeStyle = "rgba(255, 255, 255, 0.45)";

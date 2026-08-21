@@ -5,7 +5,7 @@ import {
 } from "../config.js";
 import { state } from "../state.js";
 import { el } from "../elements.js";
-import { clonePixels } from "../utils/pixels.js";
+import { clonePixels, countPaintedPixels } from "../utils/pixels.js";
 import {
   createGalleryId,
   sanitizeGalleryId,
@@ -60,10 +60,45 @@ export function getGalleryItem(id) {
   return readRawGalleryItem(id);
 }
 
+function storagePayload(item) {
+  if (!item) return item;
+  return {
+    id: item.id,
+    name: item.name,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    gridSize: item.gridSize,
+    pixels: item.pixels,
+    palette: item.palette,
+    recentColors: item.recentColors,
+    currentColor: item.currentColor,
+    secondaryColor: item.secondaryColor,
+    showGrid: item.showGrid,
+    mirrorX: item.mirrorX,
+    brushSize: item.brushSize,
+  };
+}
+
 function setGalleryItem(id, item) {
   const safeId = sanitizeGalleryId(id);
   if (!safeId || !item) return;
-  localStorage.setItem(GALLERY_ITEM_PREFIX + safeId, JSON.stringify(item));
+  localStorage.setItem(GALLERY_ITEM_PREFIX + safeId, JSON.stringify(storagePayload(item)));
+}
+
+async function resolveGalleryItem(safeId) {
+  const local = readRawGalleryItem(safeId);
+  if (!state.authUser) return local;
+
+  const cloud = await fetchGalleryItemFromCloud(safeId);
+  if (!local) return cloud;
+  if (!cloud) return local;
+
+  const localPainted = countPaintedPixels(local.pixels);
+  const cloudPainted = countPaintedPixels(cloud.pixels);
+
+  if (cloudPainted > localPainted) return cloud;
+  if (localPainted > cloudPainted) return local;
+  return cloud.updatedAt >= local.updatedAt ? cloud : local;
 }
 
 function removeGalleryItem(id) {
@@ -199,11 +234,7 @@ async function loadFromGallery(id) {
   row?.classList.add("loading");
 
   try {
-    let item = readRawGalleryItem(safeId);
-
-    if (!item && state.authUser) {
-      item = await fetchGalleryItemFromCloud(safeId);
-    }
+    const item = await resolveGalleryItem(safeId);
 
     if (!item) {
       setGalleryStatus("Could not load this piece.", "error");

@@ -45,9 +45,15 @@ function normalizePixels(pixels) {
 }
 
 export function sanitizeHexColor(value) {
-  if (value == null || typeof value !== "string") return null;
+  if (value == null) return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    value = `#${Math.max(0, Math.min(0xffffff, value)).toString(16).padStart(6, "0")}`;
+  }
+  if (typeof value !== "string") return null;
   const normalized = value.trim();
-  return HEX_COLOR_RE.test(normalized) ? normalized.toLowerCase() : null;
+  if (HEX_COLOR_RE.test(normalized)) return normalized.toLowerCase();
+  if (/^[0-9a-fA-F]{6}$/.test(normalized)) return `#${normalized.toLowerCase()}`;
+  return null;
 }
 
 export function safeCssColor(value, fallback) {

@@ -11,6 +11,35 @@ import {
   validateGalleryIndexEntry,
   parseJsonSafe,
 } from "../utils/security.js";
+import { countPaintedPixels } from "../utils/pixels.js";
+
+function storagePayload(item) {
+  if (!item) return item;
+  return {
+    id: item.id,
+    name: item.name,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+    gridSize: item.gridSize,
+    pixels: item.pixels,
+    palette: item.palette,
+    recentColors: item.recentColors,
+    currentColor: item.currentColor,
+    secondaryColor: item.secondaryColor,
+    showGrid: item.showGrid,
+    mirrorX: item.mirrorX,
+    brushSize: item.brushSize,
+  };
+}
+
+function shouldPreferCloudItem(localItem, cloudItem) {
+  const localPainted = countPaintedPixels(localItem.pixels);
+  const cloudPainted = countPaintedPixels(cloudItem.pixels);
+
+  if (cloudPainted > localPainted) return true;
+  if (localPainted > cloudPainted) return false;
+  return cloudItem.updatedAt >= localItem.updatedAt;
+}
 
 function isSignedIn() {
   return Boolean(state.authUser);
@@ -72,14 +101,23 @@ function cloudRowToItem(row) {
 
 function writeLocalGallery(index, itemsById) {
   const safeIndex = index.slice(0, MAX_GALLERY_ITEMS);
-  const items = Object.values(itemsById).filter((item) => item?.id);
+  const writtenIds = new Set();
 
-  // Write item payloads first so the index never points at missing data.
-  for (const item of items) {
-    localStorage.setItem(GALLERY_ITEM_PREFIX + item.id, JSON.stringify(item));
+  for (const item of Object.values(itemsById)) {
+    if (!item?.id) continue;
+    try {
+      localStorage.setItem(
+        GALLERY_ITEM_PREFIX + item.id,
+        JSON.stringify(storagePayload(item))
+      );
+      writtenIds.add(item.id);
+    } catch (err) {
+      console.warn("Could not cache gallery item locally:", item.id, err);
+    }
   }
 
-  const keepIds = new Set(safeIndex.map((entry) => entry.id));
+  const finalIndex = safeIndex.filter((entry) => writtenIds.has(entry.id));
+  const keepIds = new Set(finalIndex.map((entry) => entry.id));
   const staleKeys = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
@@ -89,14 +127,20 @@ function writeLocalGallery(index, itemsById) {
   }
   for (const key of staleKeys) localStorage.removeItem(key);
 
-  localStorage.setItem(GALLERY_INDEX_KEY, JSON.stringify(safeIndex));
+  localStorage.setItem(GALLERY_INDEX_KEY, JSON.stringify(finalIndex));
 }
 
 let syncInFlight = null;
 
 async function ensureAuthSession(supabase) {
-  const { data: { session } } = await supabase.auth.getSession();
-  return session ?? null;
+  let { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    const { data } = await supabase.auth.refreshSession();
+    session = data.session ?? null;
+  }
+  if (session) return session;
+  if (state.authUser) return { user: state.authUser };
+  return null;
 }
 
 export async function pushGalleryItemToCloud(item) {
@@ -177,7 +221,7 @@ export async function syncGalleryWithCloud() {
       const cloudItem = cloudRowToItem(row);
       if (!cloudItem) continue;
       const existing = merged.get(cloudItem.id);
-      if (!existing || cloudItem.updatedAt >= existing.updatedAt) {
+      if (!existing || shouldPreferCloudItem(existing, cloudItem)) {
         merged.set(cloudItem.id, cloudItem);
       }
     }
@@ -242,7 +286,7 @@ export async function fetchGalleryItemFromCloud(id) {
     const item = cloudRowToItem(data);
     if (!item) return null;
 
-    localStorage.setItem(GALLERY_ITEM_PREFIX + safeId, JSON.stringify(item));
+    localStorage.setItem(GALLERY_ITEM_PREFIX + safeId, JSON.stringify(storagePayload(item)));
     return item;
   } catch (err) {
     console.warn("Cloud gallery fetch failed:", err);

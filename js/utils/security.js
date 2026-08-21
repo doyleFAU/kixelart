@@ -86,7 +86,11 @@ export function parseJsonSafe(raw, fallback = null) {
   try {
     const data = JSON.parse(raw);
     if (data && typeof data === "object" && !Array.isArray(data)) {
-      if ("__proto__" in data || "constructor" in data || "prototype" in data) {
+      if (
+        Object.hasOwn(data, "__proto__") ||
+        Object.hasOwn(data, "constructor") ||
+        Object.hasOwn(data, "prototype")
+      ) {
         return fallback;
       }
     }

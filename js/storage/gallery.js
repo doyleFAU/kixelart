@@ -20,6 +20,7 @@ import { applyProjectData, scheduleSave } from "./project.js";
 import {
   pushGalleryItemToCloud,
   deleteGalleryItemFromCloud,
+  fetchGalleryItemFromCloud,
 } from "../supabase/gallery-sync.js";
 
 function getGalleryIndex() {
@@ -144,21 +145,56 @@ export function saveToGallery() {
   }
 }
 
-function loadFromGallery(id) {
+function loadGalleryItem(id) {
+  const safeId = sanitizeGalleryId(id);
+  if (!safeId) return null;
+
+  let item = getGalleryItem(safeId);
+  if (item) return item;
+
+  const raw = localStorage.getItem(GALLERY_ITEM_PREFIX + safeId);
+  if (raw) {
+    item = validateGalleryItem(parseJsonSafe(raw));
+    if (item) {
+      setGalleryItem(safeId, item);
+      return item;
+    }
+  }
+
+  return null;
+}
+
+async function loadFromGallery(id) {
   const safeId = sanitizeGalleryId(id);
   if (!safeId) return;
 
-  const item = getGalleryItem(safeId);
+  let item = loadGalleryItem(safeId);
+
+  if (!item && state.authUser) {
+    el.saveStatus.textContent = "Loading…";
+    el.saveStatus.className = "save-status unsaved";
+    try {
+      item = await fetchGalleryItemFromCloud(safeId);
+    } catch {
+      item = null;
+    }
+  }
+
   if (!item) {
+    el.saveStatus.textContent = "Could not load art";
+    el.saveStatus.className = "save-status unsaved";
     renderGallery();
     return;
   }
+
   state.activeGalleryId = safeId;
   applyProjectData(item);
   el.saveName.value = item.name;
   renderGallery();
   scheduleSave();
   fitZoom();
+  el.saveStatus.textContent = "Loaded";
+  el.saveStatus.className = "save-status saved";
 }
 
 function deleteFromGallery(id, e) {
@@ -225,7 +261,9 @@ export function renderGallery() {
     row.appendChild(thumb);
     row.appendChild(info);
     row.appendChild(delBtn);
-    row.addEventListener("click", () => loadFromGallery(entry.id));
+    row.addEventListener("click", () => {
+      loadFromGallery(entry.id);
+    });
     el.galleryList.appendChild(row);
   });
 }

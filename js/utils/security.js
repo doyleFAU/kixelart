@@ -19,6 +19,22 @@ const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const GALLERY_ID_RE = /^art-[0-9A-Za-z_-]{1,64}$/;
 const DATA_URL_IMAGE_RE = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/;
 
+function normalizeGridSize(value) {
+  const size = Number(value);
+  return ALLOWED_GRID_SIZES.has(size) ? size : null;
+}
+
+function normalizePixels(pixels) {
+  if (typeof pixels === "string") {
+    try {
+      return JSON.parse(pixels);
+    } catch {
+      return null;
+    }
+  }
+  return pixels;
+}
+
 export function sanitizeHexColor(value) {
   if (value == null || typeof value !== "string") return null;
   const normalized = value.trim();
@@ -97,13 +113,14 @@ export function validatePixelGrid(pixels, gridSize) {
 
 export function validateProjectData(data) {
   if (!data || typeof data !== "object") return null;
-  if (!ALLOWED_GRID_SIZES.has(data.gridSize)) return null;
+  const gridSize = normalizeGridSize(data.gridSize);
+  if (!gridSize) return null;
 
-  const pixels = validatePixelGrid(data.pixels, data.gridSize);
+  const pixels = validatePixelGrid(normalizePixels(data.pixels), gridSize);
   if (!pixels) return null;
 
   return {
-    gridSize: data.gridSize,
+    gridSize,
     pixels,
     palette: sanitizeColorList(data.palette, DEFAULT_PALETTE),
     recentColors: sanitizeColorList(data.recentColors, []),
@@ -122,12 +139,13 @@ export function validateGalleryIndexEntry(entry) {
   if (!entry || typeof entry !== "object") return null;
   const id = sanitizeGalleryId(entry.id);
   if (!id) return null;
+  const gridSize = normalizeGridSize(entry.gridSize) || 32;
 
   return {
     id,
     name: sanitizeGalleryName(entry.name),
     updatedAt: Number.isFinite(entry.updatedAt) ? entry.updatedAt : Date.now(),
-    gridSize: ALLOWED_GRID_SIZES.has(entry.gridSize) ? entry.gridSize : 32,
+    gridSize,
     thumbnail: sanitizeThumbnailUrl(entry.thumbnail),
   };
 }
@@ -144,9 +162,10 @@ export function validateGalleryIndex(raw) {
 export function validateGalleryItem(data) {
   if (!data || typeof data !== "object") return null;
   const id = sanitizeGalleryId(data.id);
-  if (!id || !ALLOWED_GRID_SIZES.has(data.gridSize)) return null;
+  const gridSize = normalizeGridSize(data.gridSize);
+  if (!id || !gridSize) return null;
 
-  const pixels = validatePixelGrid(data.pixels, data.gridSize);
+  const pixels = validatePixelGrid(normalizePixels(data.pixels), gridSize);
   if (!pixels) return null;
 
   const now = Date.now();
@@ -155,7 +174,7 @@ export function validateGalleryItem(data) {
     name: sanitizeGalleryName(data.name),
     createdAt: Number.isFinite(data.createdAt) ? data.createdAt : now,
     updatedAt: Number.isFinite(data.updatedAt) ? data.updatedAt : now,
-    gridSize: data.gridSize,
+    gridSize,
     pixels,
     palette: sanitizeColorList(data.palette, DEFAULT_PALETTE),
     recentColors: sanitizeColorList(data.recentColors, []),
@@ -163,7 +182,7 @@ export function validateGalleryItem(data) {
     secondaryColor: sanitizeHexColor(data.secondaryColor) || "#8b6914",
     showGrid: data.showGrid !== false,
     mirrorX: !!data.mirrorX,
-    brushSize: [1, 2, 3].includes(data.brushSize) ? data.brushSize : 1,
+    brushSize: [1, 2, 3].includes(Number(data.brushSize)) ? Number(data.brushSize) : 1,
     thumbnail: sanitizeThumbnailUrl(data.thumbnail),
   };
 }

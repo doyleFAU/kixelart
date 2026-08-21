@@ -49,8 +49,8 @@ function rowToItem(row) {
     mirrorX: row.mirror_x,
     brushSize: row.brush_size,
     thumbnail: row.thumbnail,
-    createdAt: new Date(row.created_at).getTime(),
-    updatedAt: new Date(row.updated_at).getTime(),
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
   });
 }
 
@@ -151,4 +151,27 @@ export async function syncGalleryWithCloud() {
   }
 
   writeLocalGallery(index, itemsById);
+}
+
+export async function fetchGalleryItemFromCloud(id) {
+  const safeId = sanitizeGalleryId(id);
+  if (!safeId || !isSignedIn()) return null;
+
+  const supabase = await getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from("gallery_items")
+    .select("*")
+    .eq("user_id", state.authUser.id)
+    .eq("id", safeId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const item = rowToItem(data);
+  if (!item) return null;
+
+  localStorage.setItem(GALLERY_ITEM_PREFIX + safeId, JSON.stringify(item));
+  return item;
 }

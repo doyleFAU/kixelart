@@ -12,7 +12,10 @@ function updateAuthUI() {
   if (!bar) return;
 
   if (!isCloudEnabled()) {
-    bar.hidden = true;
+    bar.hidden = false;
+    status.textContent = "Cloud sync unavailable — Supabase keys not loaded. Redeploy on Vercel after adding env vars.";
+    signIn.hidden = true;
+    signOut.hidden = true;
     return;
   }
 

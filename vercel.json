@@ -46,6 +46,8 @@
         }
       ]
     },
+    {
+      "source": "/css/(.*)",
       "headers": [
         {
           "key": "Cache-Control",

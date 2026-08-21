@@ -27,12 +27,21 @@ function normalizeGridSize(value) {
 function normalizePixels(pixels) {
   if (typeof pixels === "string") {
     try {
-      return JSON.parse(pixels);
+      pixels = JSON.parse(pixels);
     } catch {
       return null;
     }
   }
-  return pixels;
+  if (Array.isArray(pixels)) return pixels;
+  if (pixels && typeof pixels === "object") {
+    const keys = Object.keys(pixels).filter((k) => /^\d+$/.test(k));
+    if (keys.length) {
+      return keys
+        .sort((a, b) => Number(a) - Number(b))
+        .map((k) => pixels[k]);
+    }
+  }
+  return null;
 }
 
 export function sanitizeHexColor(value) {

@@ -64,7 +64,8 @@ async function onSession(session) {
     try {
       await syncGalleryWithCloud();
       renderGallery();
-    } catch {
+    } catch (err) {
+      console.warn("Gallery cloud sync failed:", err);
       alert("Could not sync your art from the cloud. Your local saves are still available.");
     }
   }
@@ -79,11 +80,15 @@ export async function initAuth() {
   document.getElementById("btn-sign-in")?.addEventListener("click", signInWithGitHub);
   document.getElementById("btn-sign-out")?.addEventListener("click", signOut);
 
+  let sessionQueue = Promise.resolve();
+
   const { data: { session } } = await supabase.auth.getSession();
   await onSession(session);
 
   supabase.auth.onAuthStateChange((_event, session) => {
-    onSession(session);
+    sessionQueue = sessionQueue
+      .then(() => onSession(session))
+      .catch((err) => console.warn("Auth session handler failed:", err));
   });
 }
 

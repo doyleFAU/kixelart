@@ -86,33 +86,34 @@ function setGalleryItem(id, item) {
   localStorage.setItem(GALLERY_ITEM_PREFIX + safeId, JSON.stringify(storagePayload(item)));
 }
 
-async function resolveGalleryItem(safeId) {
-  if (state.authUser) {
-    await waitForGallerySync();
+async function loadGalleryItem(safeId) {
+  let item = readRawGalleryItem(safeId);
+  if (item && countPaintedPixels(item.pixels) > 0) {
+    return item;
   }
 
-  const local = readRawGalleryItem(safeId);
-  const localPainted = local ? countPaintedPixels(local.pixels) : 0;
+  if (!state.authUser) {
+    return item;
+  }
 
-  // Good local copy — use it and never overwrite with a cloud fetch.
-  if (local && localPainted > 0) return local;
+  await waitForGallerySync();
 
-  if (!state.authUser) return local;
+  item = readRawGalleryItem(safeId);
+  if (item && countPaintedPixels(item.pixels) > 0) {
+    return item;
+  }
 
   const cloud = await queryCloudGalleryItem(safeId);
-  if (!cloud) return local;
+  if (!cloud) {
+    return item;
+  }
 
-  const cloudPainted = countPaintedPixels(cloud.pixels);
-  if (cloudPainted > localPainted) {
+  if (countPaintedPixels(cloud.pixels) > countPaintedPixels(item?.pixels ?? [])) {
     setGalleryItem(safeId, cloud);
     return cloud;
   }
-  if (localPainted > cloudPainted && local) return local;
-  if (cloud.updatedAt >= (local?.updatedAt ?? 0)) {
-    setGalleryItem(safeId, cloud);
-    return cloud;
-  }
-  return local;
+
+  return item ?? cloud;
 }
 
 function removeGalleryItem(id) {
@@ -248,7 +249,7 @@ async function loadFromGallery(id) {
   row?.classList.add("loading");
 
   try {
-    const item = await resolveGalleryItem(safeId);
+    const item = await loadGalleryItem(safeId);
 
     if (!item) {
       setGalleryStatus("Could not load this piece.", "error");

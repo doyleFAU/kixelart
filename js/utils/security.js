@@ -24,12 +24,30 @@ function normalizeGridSize(value) {
   return ALLOWED_GRID_SIZES.has(size) ? size : null;
 }
 
-function normalizePixels(pixels) {
+function normalizePixels(pixels, gridSize) {
   if (typeof pixels === "string") {
     try {
       pixels = JSON.parse(pixels);
     } catch {
       return null;
+    }
+    if (typeof pixels === "string") {
+      try {
+        pixels = JSON.parse(pixels);
+      } catch {
+        return null;
+      }
+    }
+  }
+  if (Array.isArray(pixels) && pixels.length > 0 && !Array.isArray(pixels[0])) {
+    const flat = pixels;
+    const size = gridSize || Math.round(Math.sqrt(flat.length));
+    if (size > 0) {
+      const grid = [];
+      for (let y = 0; y < size; y++) {
+        grid.push(flat.slice(y * size, (y + 1) * size));
+      }
+      pixels = grid;
     }
   }
   if (Array.isArray(pixels)) return pixels;
@@ -141,7 +159,7 @@ export function normalizeGalleryItem(data) {
   const gridSize = normalizeGridSize(data.gridSize ?? data.grid_size);
   if (!id || !gridSize) return null;
 
-  let pixels = normalizePixels(data.pixels);
+  let pixels = normalizePixels(data.pixels, gridSize);
   if (!Array.isArray(pixels)) return null;
 
   const grid = [];
@@ -184,7 +202,7 @@ export function validateProjectData(data) {
   const gridSize = normalizeGridSize(data.gridSize);
   if (!gridSize) return null;
 
-  const pixels = validatePixelGrid(normalizePixels(data.pixels), gridSize);
+  const pixels = validatePixelGrid(normalizePixels(data.pixels, gridSize), gridSize);
   if (!pixels) return null;
 
   return {
@@ -233,7 +251,7 @@ export function validateGalleryItem(data) {
   const gridSize = normalizeGridSize(data.gridSize);
   if (!id || !gridSize) return null;
 
-  const pixels = validatePixelGrid(normalizePixels(data.pixels), gridSize);
+  const pixels = validatePixelGrid(normalizePixels(data.pixels, gridSize), gridSize);
   if (!pixels) return null;
 
   const now = Date.now();

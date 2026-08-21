@@ -65,8 +65,11 @@ export function sanitizeGalleryName(name) {
 }
 
 export function sanitizeGalleryId(id) {
-  if (typeof id !== "string" || !GALLERY_ID_RE.test(id)) return null;
-  return id;
+  if (id == null) return null;
+  const trimmed = String(id).trim();
+  if (!trimmed || trimmed.length > 80) return null;
+  if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) return null;
+  return trimmed;
 }
 
 export function createGalleryId() {

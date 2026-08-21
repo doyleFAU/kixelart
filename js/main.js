@@ -1,6 +1,6 @@
 import { initElements } from "./elements.js";
 import { loadProject } from "./storage/project.js";
-import { renderGallery } from "./storage/gallery.js";
+import { renderGallery, initGalleryUI } from "./storage/gallery.js";
 import { createGrid } from "./drawing/canvas.js";
 import {
   drawColorWheel,
@@ -40,6 +40,7 @@ function init() {
   bindFileIO();
   bindUI();
   bindTheme();
+  initGalleryUI();
   initAuth();
 
   updateCursorMode();

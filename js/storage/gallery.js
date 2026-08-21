@@ -23,6 +23,23 @@ import {
   fetchGalleryItemFromCloud,
 } from "../supabase/gallery-sync.js";
 
+let galleryUiBound = false;
+
+function setGalleryStatus(message, type = "") {
+  if (el.galleryStatus) {
+    el.galleryStatus.textContent = message;
+    el.galleryStatus.className = type ? `gallery-status ${type}` : "gallery-status";
+  }
+  if (el.saveStatus && message) {
+    el.saveStatus.textContent = message;
+    el.saveStatus.className = type === "error"
+      ? "save-status unsaved"
+      : type === "success"
+        ? "save-status saved"
+        : "save-status unsaved";
+  }
+}
+
 function getGalleryIndex() {
   return validateGalleryIndex(localStorage.getItem(GALLERY_INDEX_KEY));
 }
@@ -85,6 +102,25 @@ function buildIndexEntry(item) {
   };
 }
 
+export function initGalleryUI() {
+  if (galleryUiBound || !el.galleryList) return;
+  galleryUiBound = true;
+
+  el.galleryList.addEventListener("click", (e) => {
+    const deleteBtn = e.target.closest(".gallery-delete");
+    if (deleteBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const row = deleteBtn.closest(".gallery-item");
+      if (row?.dataset.id) deleteFromGallery(row.dataset.id, e);
+      return;
+    }
+
+    const row = e.target.closest(".gallery-item");
+    if (row?.dataset.id) loadFromGallery(row.dataset.id);
+  });
+}
+
 export function saveToGallery() {
   const name = sanitizeGalleryName(el.saveName.value.trim() || `Art ${Date.now()}`);
   const now = Date.now();
@@ -112,7 +148,7 @@ export function saveToGallery() {
   });
 
   if (!item) {
-    alert("Could not save this art piece.");
+    setGalleryStatus("Could not save this piece.", "error");
     return;
   }
 
@@ -138,27 +174,29 @@ export function saveToGallery() {
     el.saveName.value = name;
     renderGallery();
     scheduleSave();
-    el.saveStatus.textContent = isUpdate ? "Art updated" : "Art saved";
-    el.saveStatus.className = "save-status saved";
+    setGalleryStatus(isUpdate ? "Art updated" : "Art saved", "success");
     pushGalleryItemToCloud(item).catch(() => {
-      el.saveStatus.textContent = "Saved locally (cloud sync failed)";
-      el.saveStatus.className = "save-status unsaved";
+      setGalleryStatus("Saved locally (cloud sync failed)", "error");
     });
   } catch {
-    alert("Could not save — browser storage may be full. Try deleting old saves.");
+    setGalleryStatus("Storage full — delete old saves.", "error");
   }
 }
 
 async function loadFromGallery(id) {
   const safeId = sanitizeGalleryId(id);
   if (!safeId) {
-    el.saveStatus.textContent = "Invalid art id";
-    el.saveStatus.className = "save-status unsaved";
+    setGalleryStatus("Could not load — invalid id.", "error");
     return;
   }
 
-  el.saveStatus.textContent = "Loading…";
-  el.saveStatus.className = "save-status unsaved";
+  setGalleryStatus("Loading art…");
+
+  document.querySelectorAll(".gallery-item.loading").forEach((node) => {
+    node.classList.remove("loading");
+  });
+  const row = el.galleryList?.querySelector(`.gallery-item[data-id="${CSS.escape(safeId)}"]`);
+  row?.classList.add("loading");
 
   try {
     let item = readRawGalleryItem(safeId);
@@ -168,8 +206,7 @@ async function loadFromGallery(id) {
     }
 
     if (!item) {
-      el.saveStatus.textContent = "Could not load art";
-      el.saveStatus.className = "save-status unsaved";
+      setGalleryStatus("Could not load this piece.", "error");
       return;
     }
 
@@ -179,18 +216,17 @@ async function loadFromGallery(id) {
     renderGallery();
     scheduleSave();
     fitZoom();
-    el.saveStatus.textContent = "Loaded";
-    el.saveStatus.className = "save-status saved";
+    setGalleryStatus(`Loaded "${item.name}"`, "success");
   } catch (err) {
     console.error("Gallery load failed:", err);
-    el.saveStatus.textContent = "Could not load art";
-    el.saveStatus.className = "save-status unsaved";
+    setGalleryStatus("Could not load this piece.", "error");
+  } finally {
+    row?.classList.remove("loading");
   }
 }
 
 function deleteFromGallery(id, e) {
   e.stopPropagation();
-  e.preventDefault();
   const safeId = sanitizeGalleryId(id);
   if (!safeId) return;
 
@@ -207,20 +243,21 @@ function deleteFromGallery(id, e) {
 
   renderGallery();
   scheduleSave();
+  setGalleryStatus("Art deleted", "success");
   deleteGalleryItemFromCloud(safeId).catch(() => {
-    el.saveStatus.textContent = "Deleted locally (cloud sync failed)";
-    el.saveStatus.className = "save-status unsaved";
+    setGalleryStatus("Deleted locally (cloud sync failed)", "error");
   });
 }
 
 export function renderGallery() {
   const index = getGalleryIndex();
+  if (!el.galleryList) return;
   el.galleryList.replaceChildren();
 
   index.forEach((entry) => {
-    const row = document.createElement("button");
-    row.type = "button";
+    const row = document.createElement("div");
     row.className = "gallery-item";
+    row.dataset.id = entry.id;
     if (entry.id === state.activeGalleryId) row.classList.add("active");
 
     const thumb = document.createElement("img");
@@ -250,15 +287,10 @@ export function renderGallery() {
     delBtn.type = "button";
     delBtn.title = "Delete";
     delBtn.textContent = "×";
-    delBtn.addEventListener("click", (ev) => deleteFromGallery(entry.id, ev));
 
     row.appendChild(thumb);
     row.appendChild(info);
     row.appendChild(delBtn);
-    row.addEventListener("click", (ev) => {
-      if (ev.target.closest(".gallery-delete")) return;
-      loadFromGallery(entry.id);
-    });
     el.galleryList.appendChild(row);
   });
 }
@@ -268,4 +300,5 @@ export function startNewGallerySave() {
   el.saveName.value = "";
   el.saveName.focus();
   renderGallery();
+  setGalleryStatus("");
 }

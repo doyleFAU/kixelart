@@ -211,17 +211,29 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
   padding: 8px;
   border-radius: 8px;
   background: var(--surface);
   border: 2px solid transparent;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
-  text-align: left;
-  font: inherit;
-  color: inherit;
+  user-select: none;
 }
+
+.gallery-item.loading {
+  opacity: 0.6;
+  border-color: var(--accent);
+}
+
+.gallery-status {
+  min-height: 18px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.gallery-status.success { color: var(--success); }
+.gallery-status.error { color: var(--danger); }
 
 .gallery-item:hover {
   background: var(--surface-hover);

@@ -25,6 +25,7 @@ export const el = {
   galleryList: null,
   saveName: null,
   cursorPos: null,
+  galleryStatus: null,
 };
 
 export function initElements() {
@@ -53,6 +54,7 @@ export function initElements() {
   el.galleryList = document.getElementById("gallery-list");
   el.saveName = document.getElementById("save-name");
   el.cursorPos = document.getElementById("cursor-pos");
+  el.galleryStatus = document.getElementById("gallery-status");
 }
 
 export function $(id) {

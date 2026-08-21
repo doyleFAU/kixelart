@@ -44,6 +44,14 @@ export function drawGridOverlay() {
   }
 }
 
+function syncCheckerboardPattern(zoom) {
+  const tile = Math.max(1, zoom);
+  const period = tile * 2;
+  el.checkerboard.style.backgroundSize = `${period}px ${period}px`;
+  el.checkerboard.style.backgroundPosition =
+    `0 0, 0 ${tile}px, ${tile}px -${tile}px, -${tile}px 0`;
+}
+
 export function applyZoom() {
   const displaySize = state.gridSize * state.zoom;
   el.canvas.style.width = `${displaySize}px`;
@@ -52,6 +60,7 @@ export function applyZoom() {
   el.canvasWrap.style.height = `${displaySize}px`;
   el.checkerboard.style.width = `${displaySize}px`;
   el.checkerboard.style.height = `${displaySize}px`;
+  syncCheckerboardPattern(state.zoom);
   el.zoomLabel.textContent = `${state.zoom}px`;
 }
 

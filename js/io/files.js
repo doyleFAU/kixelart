@@ -62,7 +62,14 @@ export function importImage(file) {
       temp.height = state.gridSize;
       const tctx = temp.getContext("2d");
       tctx.imageSmoothingEnabled = false;
-      tctx.drawImage(img, 0, 0, state.gridSize, state.gridSize);
+      const crop = Math.min(img.width, img.height);
+      const sx = (img.width - crop) / 2;
+      const sy = (img.height - crop) / 2;
+      tctx.drawImage(
+        img,
+        sx, sy, crop, crop,
+        0, 0, state.gridSize, state.gridSize
+      );
       const imageData = tctx.getImageData(0, 0, state.gridSize, state.gridSize).data;
 
       saveState();
@@ -70,7 +77,7 @@ export function importImage(file) {
         for (let x = 0; x < state.gridSize; x++) {
           const i = (y * state.gridSize + x) * 4;
           const a = imageData[i + 3];
-          state.pixels[y][x] = a < 128
+          state.pixels[y][x] = a === 0
             ? null
             : rgbToHex(imageData[i], imageData[i + 1], imageData[i + 2]);
         }

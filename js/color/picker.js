@@ -3,6 +3,7 @@ import { state } from "../state.js";
 import { el } from "../elements.js";
 import { updateCursorMode } from "../renderer.js";
 import { hsvToRgb, rgbToHex, hexToRgb, rgbToHsv } from "../utils/color.js";
+import { safeCssColor, sanitizeHexColor } from "../utils/security.js";
 
 export function updateColorUI() {
   el.currentColor.style.background = state.currentColor;
@@ -12,11 +13,13 @@ export function updateColorUI() {
 }
 
 export function setColor(hex, which = "primary") {
-  const rgb = hexToRgb(hex);
+  const safe = sanitizeHexColor(hex);
+  if (!safe) return;
+  const rgb = hexToRgb(safe);
   if (!rgb) return;
   if (which === "secondary") {
-    state.secondaryColor = hex;
-    el.secondaryColor.style.background = hex;
+    state.secondaryColor = safe;
+    el.secondaryColor.style.background = safe;
     return;
   }
   const [h, s, v] = rgbToHsv(...rgb);
@@ -25,7 +28,7 @@ export function setColor(hex, which = "primary") {
   state.wheelBright = v;
   el.brightness.value = Math.round(v * 100);
   updateWheelCursor();
-  state.currentColor = hex;
+  state.currentColor = safe;
   updateColorUI();
 }
 
@@ -44,42 +47,49 @@ export function swapColors() {
 }
 
 export function addRecentColor(color) {
-  if (!color || color === ERASER_COLOR) return;
+  const safe = sanitizeHexColor(color);
+  if (!safe || safe === ERASER_COLOR) return;
   state.recentColors = state.recentColors.filter(
-    (c) => c.toLowerCase() !== color.toLowerCase()
+    (c) => c.toLowerCase() !== safe.toLowerCase()
   );
-  state.recentColors.unshift(color);
+  state.recentColors.unshift(safe);
   if (state.recentColors.length > MAX_RECENT) state.recentColors.pop();
   renderRecentColors();
 }
 
 export function renderRecentColors() {
-  el.recentColors.innerHTML = "";
+  el.recentColors.replaceChildren();
   if (state.recentColors.length === 0) {
-    el.recentColors.innerHTML = '<span class="empty-recent">Draw to build history</span>';
+    const empty = document.createElement("span");
+    empty.className = "empty-recent";
+    empty.textContent = "Draw to build history";
+    el.recentColors.appendChild(empty);
     return;
   }
   state.recentColors.forEach((color) => {
     const swatch = document.createElement("button");
+    swatch.type = "button";
     swatch.className = "palette-swatch";
-    swatch.style.background = color;
-    swatch.title = color;
+    swatch.style.background = safeCssColor(color, "#000000");
+    swatch.title = safeCssColor(color, "#000000");
     swatch.addEventListener("click", () => setColor(color));
     el.recentColors.appendChild(swatch);
   });
 }
 
 export function renderPalette() {
-  el.palette.innerHTML = "";
+  el.palette.replaceChildren();
   state.palette.forEach((color) => {
+    const safe = safeCssColor(color, "#000000");
     const swatch = document.createElement("button");
+    swatch.type = "button";
     swatch.className = "palette-swatch";
-    swatch.style.background = color;
-    swatch.title = color;
-    if (color.toLowerCase() === state.currentColor.toLowerCase()) {
+    swatch.style.background = safe;
+    swatch.title = safe;
+    if (safe.toLowerCase() === state.currentColor.toLowerCase()) {
       swatch.classList.add("active");
     }
-    swatch.addEventListener("click", () => setColor(color));
+    swatch.addEventListener("click", () => setColor(safe));
     el.palette.appendChild(swatch);
   });
 }
@@ -183,10 +193,12 @@ export function setBrushSize(size) {
   });
 }
 
+import { sanitizeToolName } from "../utils/security.js";
+
 export function selectTool(name) {
-  state.currentTool = name;
+  state.currentTool = sanitizeToolName(name);
   document.querySelectorAll(".tool-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.tool === name);
+    btn.classList.toggle("active", btn.dataset.tool === state.currentTool);
   });
   updateCursorMode();
 }

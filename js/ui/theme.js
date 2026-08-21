@@ -1,12 +1,14 @@
 import { THEME_STORAGE_KEY } from "../config.js";
+import { sanitizeTheme } from "../utils/security.js";
 
 export function getTheme() {
   return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
 }
 
 export function setTheme(theme) {
-  document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
-  localStorage.setItem(THEME_STORAGE_KEY, theme);
+  const safe = sanitizeTheme(theme);
+  document.documentElement.setAttribute("data-theme", safe);
+  localStorage.setItem(THEME_STORAGE_KEY, safe);
   updateThemeButton();
 }
 

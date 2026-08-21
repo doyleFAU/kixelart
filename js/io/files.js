@@ -1,12 +1,13 @@
 import { state } from "../state.js";
 import { el } from "../elements.js";
 import { rgbToHex } from "../utils/color.js";
+import { isAllowedImageFile, sanitizeExportScale } from "../utils/security.js";
 import { saveState } from "../history.js";
 import { render } from "../renderer.js";
 import { scheduleSave } from "../storage/project.js";
 
 export function downloadPNG() {
-  const scale = parseInt(document.getElementById("export-scale").value, 10) || 1;
+  const scale = sanitizeExportScale(document.getElementById("export-scale").value);
   const transparent = document.getElementById("export-transparent").checked;
   const exportCanvas = document.createElement("canvas");
   exportCanvas.width = state.gridSize * scale;
@@ -41,9 +42,20 @@ export function downloadPNG() {
 }
 
 export function importImage(file) {
+  if (!isAllowedImageFile(file)) {
+    alert("Please choose a PNG, JPG, GIF, or WebP under 10 MB.");
+    return;
+  }
+
   const reader = new FileReader();
+  reader.onerror = () => {
+    alert("Could not read that file.");
+  };
   reader.onload = (ev) => {
     const img = new Image();
+    img.onerror = () => {
+      alert("That file is not a valid image.");
+    };
     img.onload = () => {
       const temp = document.createElement("canvas");
       temp.width = state.gridSize;

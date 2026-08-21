@@ -5,16 +5,21 @@ import {
 } from "../config.js";
 import { state } from "../state.js";
 import { el } from "../elements.js";
-import { clonePixels, escapeHtml } from "../utils/pixels.js";
+import { clonePixels } from "../utils/pixels.js";
+import {
+  createGalleryId,
+  sanitizeGalleryId,
+  sanitizeGalleryName,
+  sanitizeThumbnailUrl,
+  validateGalleryIndex,
+  validateGalleryItem,
+  parseJsonSafe,
+} from "../utils/security.js";
 import { render, fitZoom } from "../renderer.js";
 import { applyProjectData, scheduleSave } from "./project.js";
 
 function getGalleryIndex() {
-  try {
-    return JSON.parse(localStorage.getItem(GALLERY_INDEX_KEY) || "[]");
-  } catch {
-    return [];
-  }
+  return validateGalleryIndex(localStorage.getItem(GALLERY_INDEX_KEY));
 }
 
 function setGalleryIndex(index) {
@@ -22,19 +27,27 @@ function setGalleryIndex(index) {
 }
 
 export function getGalleryItem(id) {
+  const safeId = sanitizeGalleryId(id);
+  if (!safeId) return null;
   try {
-    return JSON.parse(localStorage.getItem(GALLERY_ITEM_PREFIX + id));
+    const raw = localStorage.getItem(GALLERY_ITEM_PREFIX + safeId);
+    if (!raw) return null;
+    return validateGalleryItem(parseJsonSafe(raw));
   } catch {
     return null;
   }
 }
 
 function setGalleryItem(id, item) {
-  localStorage.setItem(GALLERY_ITEM_PREFIX + id, JSON.stringify(item));
+  const safeId = sanitizeGalleryId(id);
+  if (!safeId || !item) return;
+  localStorage.setItem(GALLERY_ITEM_PREFIX + safeId, JSON.stringify(item));
 }
 
 function removeGalleryItem(id) {
-  localStorage.removeItem(GALLERY_ITEM_PREFIX + id);
+  const safeId = sanitizeGalleryId(id);
+  if (!safeId) return;
+  localStorage.removeItem(GALLERY_ITEM_PREFIX + safeId);
 }
 
 function makeThumbnailDataUrl() {
@@ -58,10 +71,12 @@ function formatGalleryDate(timestamp) {
 }
 
 export function saveToGallery() {
-  const name = el.saveName.value.trim() || `Art ${Date.now()}`;
+  const name = sanitizeGalleryName(el.saveName.value.trim() || `Art ${Date.now()}`);
   const now = Date.now();
-  const id = state.activeGalleryId || `art-${now}`;
-  const isUpdate = !!state.activeGalleryId && getGalleryItem(state.activeGalleryId);
+  const id = state.activeGalleryId && sanitizeGalleryId(state.activeGalleryId)
+    ? state.activeGalleryId
+    : createGalleryId();
+  const isUpdate = !!state.activeGalleryId && !!getGalleryItem(state.activeGalleryId);
 
   const item = {
     id,
@@ -85,7 +100,13 @@ export function saveToGallery() {
 
     if (isUpdate) {
       const idx = index.findIndex((e) => e.id === id);
-      const entry = { id, name, updatedAt: now, gridSize: state.gridSize, thumbnail: item.thumbnail };
+      const entry = {
+        id,
+        name,
+        updatedAt: now,
+        gridSize: state.gridSize,
+        thumbnail: sanitizeThumbnailUrl(item.thumbnail),
+      };
       if (idx >= 0) index[idx] = entry;
       else index.unshift(entry);
     } else {
@@ -98,7 +119,7 @@ export function saveToGallery() {
         name,
         updatedAt: now,
         gridSize: state.gridSize,
-        thumbnail: item.thumbnail,
+        thumbnail: sanitizeThumbnailUrl(item.thumbnail),
       });
       state.activeGalleryId = id;
     }
@@ -116,12 +137,15 @@ export function saveToGallery() {
 }
 
 function loadFromGallery(id) {
-  const item = getGalleryItem(id);
+  const safeId = sanitizeGalleryId(id);
+  if (!safeId) return;
+
+  const item = getGalleryItem(safeId);
   if (!item) {
     renderGallery();
     return;
   }
-  state.activeGalleryId = id;
+  state.activeGalleryId = safeId;
   applyProjectData(item);
   el.saveName.value = item.name;
   renderGallery();
@@ -131,13 +155,16 @@ function loadFromGallery(id) {
 
 function deleteFromGallery(id, e) {
   e.stopPropagation();
-  const item = getGalleryItem(id);
+  const safeId = sanitizeGalleryId(id);
+  if (!safeId) return;
+
+  const item = getGalleryItem(safeId);
   if (!confirm(`Delete "${item?.name || "this art"}"?`)) return;
 
-  removeGalleryItem(id);
-  setGalleryIndex(getGalleryIndex().filter((entry) => entry.id !== id));
+  removeGalleryItem(safeId);
+  setGalleryIndex(getGalleryIndex().filter((entry) => entry.id !== safeId));
 
-  if (state.activeGalleryId === id) {
+  if (state.activeGalleryId === safeId) {
     state.activeGalleryId = null;
     el.saveName.value = "";
   }
@@ -148,7 +175,7 @@ function deleteFromGallery(id, e) {
 
 export function renderGallery() {
   const index = getGalleryIndex();
-  el.galleryList.innerHTML = "";
+  el.galleryList.replaceChildren();
 
   index.forEach((entry) => {
     const row = document.createElement("div");
@@ -158,16 +185,27 @@ export function renderGallery() {
     const thumb = document.createElement("img");
     thumb.className = "gallery-thumb";
     thumb.src = entry.thumbnail || "";
-    thumb.alt = "";
+    thumb.alt = entry.name;
+    thumb.loading = "lazy";
+    thumb.referrerPolicy = "no-referrer";
 
     const info = document.createElement("div");
     info.className = "gallery-info";
-    info.innerHTML =
-      `<div class="gallery-name">${escapeHtml(entry.name)}</div>` +
-      `<div class="gallery-meta">${entry.gridSize}×${entry.gridSize} · ${formatGalleryDate(entry.updatedAt)}</div>`;
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "gallery-name";
+    nameEl.textContent = entry.name;
+
+    const metaEl = document.createElement("div");
+    metaEl.className = "gallery-meta";
+    metaEl.textContent = `${entry.gridSize}×${entry.gridSize} · ${formatGalleryDate(entry.updatedAt)}`;
+
+    info.appendChild(nameEl);
+    info.appendChild(metaEl);
 
     const delBtn = document.createElement("button");
     delBtn.className = "gallery-delete";
+    delBtn.type = "button";
     delBtn.title = "Delete";
     delBtn.textContent = "×";
     delBtn.addEventListener("click", (ev) => deleteFromGallery(entry.id, ev));

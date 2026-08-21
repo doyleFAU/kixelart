@@ -6,6 +6,7 @@ import {
 import { state } from "../state.js";
 import { el, $ } from "../elements.js";
 import { clonePixels } from "../utils/pixels.js";
+import { validateProjectData, parseJsonSafe } from "../utils/security.js";
 import { resetHistory } from "../history.js";
 import { render } from "../renderer.js";
 import {
@@ -80,8 +81,9 @@ export function loadProject() {
     let raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) raw = localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return false;
-    const data = JSON.parse(raw);
-    if (!data.pixels || !data.gridSize) return false;
+
+    const data = validateProjectData(parseJsonSafe(raw));
+    if (!data) return false;
 
     applyProjectData(data);
     state.activeGalleryId = data.activeGalleryId || null;

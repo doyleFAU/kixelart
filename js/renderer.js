@@ -1,6 +1,7 @@
 import { ZOOM_MIN, ZOOM_MAX, ZOOM_ACTUAL } from "./config.js";
 import { state } from "./state.js";
 import { el } from "./elements.js";
+import { safeCssColor } from "./utils/security.js";
 
 export function updatePreview() {
   const maxPreview = 64;
@@ -61,7 +62,7 @@ export function renderPixels() {
     for (let x = 0; x < gridSize; x++) {
       const color = pixels[y][x];
       if (color) {
-        el.ctx.fillStyle = color;
+        el.ctx.fillStyle = safeCssColor(color, "#000000");
         el.ctx.fillRect(x, y, 1, 1);
       }
     }

@@ -12,7 +12,7 @@ import {
   sanitizeGalleryName,
   sanitizeThumbnailUrl,
   validateGalleryIndex,
-  validateGalleryItem,
+  normalizeGalleryItem,
   parseJsonSafe,
 } from "../utils/security.js";
 import { render, fitZoom } from "../renderer.js";
@@ -31,16 +31,16 @@ function setGalleryIndex(index) {
   localStorage.setItem(GALLERY_INDEX_KEY, JSON.stringify(index));
 }
 
-export function getGalleryItem(id) {
+function readRawGalleryItem(id) {
   const safeId = sanitizeGalleryId(id);
   if (!safeId) return null;
-  try {
-    const raw = localStorage.getItem(GALLERY_ITEM_PREFIX + safeId);
-    if (!raw) return null;
-    return validateGalleryItem(parseJsonSafe(raw));
-  } catch {
-    return null;
-  }
+  const raw = localStorage.getItem(GALLERY_ITEM_PREFIX + safeId);
+  if (!raw) return null;
+  return normalizeGalleryItem(parseJsonSafe(raw));
+}
+
+export function getGalleryItem(id) {
+  return readRawGalleryItem(id);
 }
 
 function setGalleryItem(id, item) {
@@ -75,18 +75,29 @@ function formatGalleryDate(timestamp) {
   });
 }
 
+function buildIndexEntry(item) {
+  return {
+    id: item.id,
+    name: item.name,
+    updatedAt: item.updatedAt,
+    gridSize: item.gridSize,
+    thumbnail: sanitizeThumbnailUrl(item.thumbnail),
+  };
+}
+
 export function saveToGallery() {
   const name = sanitizeGalleryName(el.saveName.value.trim() || `Art ${Date.now()}`);
   const now = Date.now();
   const id = state.activeGalleryId && sanitizeGalleryId(state.activeGalleryId)
     ? state.activeGalleryId
     : createGalleryId();
-  const isUpdate = !!state.activeGalleryId && !!getGalleryItem(state.activeGalleryId);
+  const existing = readRawGalleryItem(id);
+  const isUpdate = !!existing;
 
-  const item = {
+  const item = normalizeGalleryItem({
     id,
     name,
-    createdAt: isUpdate ? (getGalleryItem(id)?.createdAt || now) : now,
+    createdAt: isUpdate ? (existing.createdAt || now) : now,
     updatedAt: now,
     gridSize: state.gridSize,
     pixels: clonePixels(state.pixels),
@@ -98,20 +109,19 @@ export function saveToGallery() {
     mirrorX: state.mirrorX,
     brushSize: state.brushSize,
     thumbnail: makeThumbnailDataUrl(),
-  };
+  });
+
+  if (!item) {
+    alert("Could not save this art piece.");
+    return;
+  }
 
   try {
     let index = getGalleryIndex();
+    const entry = buildIndexEntry(item);
 
     if (isUpdate) {
       const idx = index.findIndex((e) => e.id === id);
-      const entry = {
-        id,
-        name,
-        updatedAt: now,
-        gridSize: state.gridSize,
-        thumbnail: sanitizeThumbnailUrl(item.thumbnail),
-      };
       if (idx >= 0) index[idx] = entry;
       else index.unshift(entry);
     } else {
@@ -119,13 +129,7 @@ export function saveToGallery() {
         const removed = index.pop();
         if (removed) removeGalleryItem(removed.id);
       }
-      index.unshift({
-        id,
-        name,
-        updatedAt: now,
-        gridSize: state.gridSize,
-        thumbnail: sanitizeThumbnailUrl(item.thumbnail),
-      });
+      index.unshift(entry);
       state.activeGalleryId = id;
     }
 
@@ -145,64 +149,52 @@ export function saveToGallery() {
   }
 }
 
-function loadGalleryItem(id) {
-  const safeId = sanitizeGalleryId(id);
-  if (!safeId) return null;
-
-  let item = getGalleryItem(safeId);
-  if (item) return item;
-
-  const raw = localStorage.getItem(GALLERY_ITEM_PREFIX + safeId);
-  if (raw) {
-    item = validateGalleryItem(parseJsonSafe(raw));
-    if (item) {
-      setGalleryItem(safeId, item);
-      return item;
-    }
-  }
-
-  return null;
-}
-
 async function loadFromGallery(id) {
   const safeId = sanitizeGalleryId(id);
-  if (!safeId) return;
-
-  let item = loadGalleryItem(safeId);
-
-  if (!item && state.authUser) {
-    el.saveStatus.textContent = "Loading…";
+  if (!safeId) {
+    el.saveStatus.textContent = "Invalid art id";
     el.saveStatus.className = "save-status unsaved";
-    try {
-      item = await fetchGalleryItemFromCloud(safeId);
-    } catch {
-      item = null;
-    }
-  }
-
-  if (!item) {
-    el.saveStatus.textContent = "Could not load art";
-    el.saveStatus.className = "save-status unsaved";
-    renderGallery();
     return;
   }
 
-  state.activeGalleryId = safeId;
-  applyProjectData(item);
-  el.saveName.value = item.name;
-  renderGallery();
-  scheduleSave();
-  fitZoom();
-  el.saveStatus.textContent = "Loaded";
-  el.saveStatus.className = "save-status saved";
+  el.saveStatus.textContent = "Loading…";
+  el.saveStatus.className = "save-status unsaved";
+
+  try {
+    let item = readRawGalleryItem(safeId);
+
+    if (!item && state.authUser) {
+      item = await fetchGalleryItemFromCloud(safeId);
+    }
+
+    if (!item) {
+      el.saveStatus.textContent = "Could not load art";
+      el.saveStatus.className = "save-status unsaved";
+      return;
+    }
+
+    state.activeGalleryId = safeId;
+    applyProjectData(item);
+    el.saveName.value = item.name;
+    renderGallery();
+    scheduleSave();
+    fitZoom();
+    el.saveStatus.textContent = "Loaded";
+    el.saveStatus.className = "save-status saved";
+  } catch (err) {
+    console.error("Gallery load failed:", err);
+    el.saveStatus.textContent = "Could not load art";
+    el.saveStatus.className = "save-status unsaved";
+  }
 }
 
 function deleteFromGallery(id, e) {
   e.stopPropagation();
+  e.preventDefault();
   const safeId = sanitizeGalleryId(id);
   if (!safeId) return;
 
-  const item = getGalleryItem(safeId);
+  const item = readRawGalleryItem(safeId);
   if (!confirm(`Delete "${item?.name || "this art"}"?`)) return;
 
   removeGalleryItem(safeId);
@@ -226,7 +218,8 @@ export function renderGallery() {
   el.galleryList.replaceChildren();
 
   index.forEach((entry) => {
-    const row = document.createElement("div");
+    const row = document.createElement("button");
+    row.type = "button";
     row.className = "gallery-item";
     if (entry.id === state.activeGalleryId) row.classList.add("active");
 
@@ -236,6 +229,7 @@ export function renderGallery() {
     thumb.alt = entry.name;
     thumb.loading = "lazy";
     thumb.referrerPolicy = "no-referrer";
+    thumb.draggable = false;
 
     const info = document.createElement("div");
     info.className = "gallery-info";
@@ -261,7 +255,8 @@ export function renderGallery() {
     row.appendChild(thumb);
     row.appendChild(info);
     row.appendChild(delBtn);
-    row.addEventListener("click", () => {
+    row.addEventListener("click", (ev) => {
+      if (ev.target.closest(".gallery-delete")) return;
       loadFromGallery(entry.id);
     });
     el.galleryList.appendChild(row);

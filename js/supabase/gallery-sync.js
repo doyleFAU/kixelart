@@ -7,8 +7,9 @@ import { state } from "../state.js";
 import { getSupabase } from "./client.js";
 import {
   sanitizeGalleryId,
-  validateGalleryItem,
+  normalizeGalleryItem,
   validateGalleryIndexEntry,
+  parseJsonSafe,
 } from "../utils/security.js";
 
 function isSignedIn() {
@@ -35,37 +36,11 @@ function itemToRow(item, userId) {
   };
 }
 
-function rowToItem(row) {
-  return validateGalleryItem({
-    id: row.id,
-    name: row.name,
-    gridSize: row.grid_size,
-    pixels: row.pixels,
-    palette: row.palette,
-    recentColors: row.recent_colors,
-    currentColor: row.current_color,
-    secondaryColor: row.secondary_color,
-    showGrid: row.show_grid,
-    mirrorX: row.mirror_x,
-    brushSize: row.brush_size,
-    thumbnail: row.thumbnail,
-    createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
-    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
-  });
-}
-
-function readLocalIndex() {
-  try {
-    return JSON.parse(localStorage.getItem(GALLERY_INDEX_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
-
 function readLocalItem(id) {
   try {
     const raw = localStorage.getItem(GALLERY_ITEM_PREFIX + id);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    return normalizeGalleryItem(parseJsonSafe(raw));
   } catch {
     return null;
   }
@@ -73,8 +48,10 @@ function readLocalItem(id) {
 
 function writeLocalGallery(index, itemsById) {
   localStorage.setItem(GALLERY_INDEX_KEY, JSON.stringify(index.slice(0, MAX_GALLERY_ITEMS)));
-  for (const [id, item] of Object.entries(itemsById)) {
-    localStorage.setItem(GALLERY_ITEM_PREFIX + id, JSON.stringify(item));
+  for (const item of Object.values(itemsById)) {
+    if (item?.id) {
+      localStorage.setItem(GALLERY_ITEM_PREFIX + item.id, JSON.stringify(item));
+    }
   }
 }
 
@@ -114,9 +91,16 @@ export async function syncGalleryWithCloud() {
 
   const userId = state.authUser.id;
 
-  const localIndex = readLocalIndex();
+  // Upload local pieces first
+  let localIndex = [];
+  try {
+    localIndex = JSON.parse(localStorage.getItem(GALLERY_INDEX_KEY) || "[]");
+  } catch {
+    localIndex = [];
+  }
+
   for (const entry of localIndex) {
-    const item = validateGalleryItem(readLocalItem(entry.id));
+    const item = readLocalItem(entry.id);
     if (item) {
       await supabase.from("gallery_items").upsert(
         itemToRow(item, userId),
@@ -133,12 +117,32 @@ export async function syncGalleryWithCloud() {
 
   if (error) throw error;
 
+  const merged = new Map();
+
+  // Keep local items
+  for (const entry of localIndex) {
+    const item = readLocalItem(entry.id);
+    if (item) merged.set(item.id, item);
+  }
+
+  // Merge cloud items (newer wins)
+  for (const row of data || []) {
+    const cloudItem = normalizeGalleryItem(row);
+    if (!cloudItem) continue;
+    const existing = merged.get(cloudItem.id);
+    if (!existing || cloudItem.updatedAt >= existing.updatedAt) {
+      merged.set(cloudItem.id, cloudItem);
+    }
+  }
+
+  const items = [...merged.values()]
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, MAX_GALLERY_ITEMS);
+
   const itemsById = {};
   const index = [];
 
-  for (const row of data || []) {
-    const item = rowToItem(row);
-    if (!item) continue;
+  for (const item of items) {
     itemsById[item.id] = item;
     const entry = validateGalleryIndexEntry({
       id: item.id,
@@ -167,9 +171,10 @@ export async function fetchGalleryItemFromCloud(id) {
     .eq("id", safeId)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) throw error;
+  if (!data) return null;
 
-  const item = rowToItem(data);
+  const item = normalizeGalleryItem(data);
   if (!item) return null;
 
   localStorage.setItem(GALLERY_ITEM_PREFIX + safeId, JSON.stringify(item));

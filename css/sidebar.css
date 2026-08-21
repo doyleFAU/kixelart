@@ -211,12 +211,16 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   padding: 8px;
   border-radius: 8px;
   background: var(--surface);
   border: 2px solid transparent;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+  font: inherit;
+  color: inherit;
 }
 
 .gallery-item:hover {

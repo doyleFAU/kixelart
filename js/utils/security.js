@@ -104,11 +104,57 @@ export function validatePixelGrid(pixels, gridSize) {
     const safeRow = [];
     for (let x = 0; x < gridSize; x++) {
       const cell = row[x];
-      safeRow.push(cell === null ? null : sanitizeHexColor(cell));
+      safeRow.push(cell == null || cell === "" ? null : sanitizeHexColor(String(cell)));
     }
     grid.push(safeRow);
   }
   return grid;
+}
+
+/** Lenient gallery item parser — used when loading saved art (local or cloud). */
+export function normalizeGalleryItem(data) {
+  if (!data || typeof data !== "object") return null;
+
+  const id = sanitizeGalleryId(String(data.id ?? ""));
+  const gridSize = normalizeGridSize(data.gridSize ?? data.grid_size);
+  if (!id || !gridSize) return null;
+
+  let pixels = normalizePixels(data.pixels);
+  if (!Array.isArray(pixels)) return null;
+
+  const grid = [];
+  for (let y = 0; y < gridSize; y++) {
+    const row = Array.isArray(pixels[y]) ? pixels[y] : [];
+    const safeRow = [];
+    for (let x = 0; x < gridSize; x++) {
+      const cell = row[x];
+      safeRow.push(cell == null || cell === "" ? null : sanitizeHexColor(String(cell)));
+    }
+    grid.push(safeRow);
+  }
+
+  const now = Date.now();
+  const createdRaw = data.createdAt ?? data.created_at;
+  const updatedRaw = data.updatedAt ?? data.updated_at;
+
+  return {
+    id,
+    name: sanitizeGalleryName(data.name),
+    createdAt: createdRaw ? new Date(createdRaw).getTime() || now : now,
+    updatedAt: updatedRaw ? new Date(updatedRaw).getTime() || now : now,
+    gridSize,
+    pixels: grid,
+    palette: sanitizeColorList(data.palette, DEFAULT_PALETTE),
+    recentColors: sanitizeColorList(data.recentColors ?? data.recent_colors, []),
+    currentColor: sanitizeHexColor(data.currentColor ?? data.current_color) || "#4a8f65",
+    secondaryColor: sanitizeHexColor(data.secondaryColor ?? data.secondary_color) || "#8b6914",
+    showGrid: (data.showGrid ?? data.show_grid) !== false,
+    mirrorX: !!(data.mirrorX ?? data.mirror_x),
+    brushSize: [1, 2, 3].includes(Number(data.brushSize ?? data.brush_size))
+      ? Number(data.brushSize ?? data.brush_size)
+      : 1,
+    thumbnail: typeof data.thumbnail === "string" ? data.thumbnail : "",
+  };
 }
 
 export function validateProjectData(data) {

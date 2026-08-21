@@ -1,21 +1,30 @@
 import { state } from "../state.js";
 import { el } from "../elements.js";
-import { rgbToHex } from "../utils/color.js";
+import { rgbToHex, hexToRgb } from "../utils/color.js";
 import { isAllowedImageFile, sanitizeExportScale } from "../utils/security.js";
 import { saveState } from "../history.js";
 import { render } from "../renderer.js";
 import { scheduleSave } from "../storage/project.js";
 
+function colorSum(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 0;
+  return rgb[0] + rgb[1] + rgb[2];
+}
+
 function isVeryDark(hex) {
-  if (!hex) return false;
-  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
-  if (!m) return false;
-  return parseInt(m[1], 16) + parseInt(m[2], 16) + parseInt(m[3], 16) < 48;
+  return colorSum(hex) < 48;
+}
+
+function isNearBlack(r, g, b, a) {
+  if (a === 0) return false;
+  return r + g + b < 36;
 }
 
 function dominantColorInBlock(data, width, x0, y0, x1, y1) {
   const counts = new Map();
   let transparent = 0;
+  let opaque = 0;
   const total = (x1 - x0) * (y1 - y0);
 
   for (let py = y0; py < y1; py++) {
@@ -26,14 +35,34 @@ function dominantColorInBlock(data, width, x0, y0, x1, y1) {
         transparent++;
         continue;
       }
-      const hex = rgbToHex(data[i], data[i + 1], data[i + 2]);
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      // Skip dark compression fringes and grid-line pixels in a block.
+      if (a < 250 && isNearBlack(r, g, b, a)) continue;
+      opaque++;
+      const hex = rgbToHex(r, g, b);
       counts.set(hex, (counts.get(hex) || 0) + 1);
     }
   }
 
-  if (transparent === total) return null;
+  if (opaque === 0) return null;
 
-  let best = null;
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  if (!ranked.length) return null;
+
+  let [best, bestCount] = ranked[0];
+  if (isVeryDark(best) && ranked.length > 1 && bestCount < opaque * 0.45) {
+    const alt = ranked.find(([hex]) => !isVeryDark(hex));
+    if (alt) best = alt[0];
+  }
+  return best;
+}
+
+function modeColor(colors) {
+  const counts = new Map();
+  for (const c of colors) counts.set(c, (counts.get(c) || 0) + 1);
+  let best = colors[0];
   let bestCount = 0;
   for (const [hex, count] of counts) {
     if (count > bestCount) {
@@ -44,32 +73,52 @@ function dominantColorInBlock(data, width, x0, y0, x1, y1) {
   return best;
 }
 
-/** Remove thin dark grid lines left in pixel data after downscale. */
-function stripThinDarkGridLines(pixels, gridSize) {
-  const get = (x, y) => pixels[y]?.[x] ?? null;
-  for (let y = 0; y < gridSize; y++) {
-    for (let x = 0; x < gridSize; x++) {
-      const color = get(x, y);
-      if (!isVeryDark(color)) continue;
+/** Remove isolated black/dark specks and thin separator lines after import. */
+function cleanupImportArtifacts(pixels, gridSize) {
+  const get = (x, y) => (x >= 0 && y >= 0 && x < gridSize && y < gridSize)
+    ? pixels[y][x]
+    : null;
 
-      const neighbors = [];
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const n = get(x + dx, y + dy);
-        if (n && !isVeryDark(n)) neighbors.push(n);
-      }
-      if (neighbors.length < 3) continue;
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        const color = get(x, y);
+        if (!color || !isVeryDark(color)) continue;
 
-      const counts = new Map();
-      for (const n of neighbors) counts.set(n, (counts.get(n) || 0) + 1);
-      let best = neighbors[0];
-      let bestCount = 0;
-      for (const [hex, count] of counts) {
-        if (count > bestCount) {
-          best = hex;
-          bestCount = count;
+        const colorful = [];
+        let darkNeighbors = 0;
+
+        for (const [dx, dy] of [
+          [1, 0], [-1, 0], [0, 1], [0, -1],
+          [1, 1], [-1, 1], [1, -1], [-1, -1],
+        ]) {
+          const n = get(x + dx, y + dy);
+          if (!n) continue;
+          if (isVeryDark(n)) {
+            darkNeighbors++;
+          } else {
+            colorful.push(n);
+          }
+        }
+        if (!colorful.length) continue;
+
+        // Thin line: dark pixel sandwiched between colors on both axes.
+        const left = get(x - 1, y);
+        const right = get(x + 1, y);
+        const up = get(x, y - 1);
+        const down = get(x, y + 1);
+        const horizontalLine = left && right && !isVeryDark(left) && !isVeryDark(right);
+        const verticalLine = up && down && !isVeryDark(up) && !isVeryDark(down);
+        if (horizontalLine || verticalLine) {
+          pixels[y][x] = modeColor(colorful);
+          continue;
+        }
+
+        // Lone speck: mostly surrounded by non-dark pixels.
+        if (darkNeighbors <= 1 && colorful.length >= 3) {
+          pixels[y][x] = modeColor(colorful);
         }
       }
-      pixels[y][x] = best;
     }
   }
 }
@@ -87,7 +136,7 @@ function pixelsFromImageData(data, srcW, srcH, gridSize) {
     }
     pixels.push(row);
   }
-  stripThinDarkGridLines(pixels, gridSize);
+  cleanupImportArtifacts(pixels, gridSize);
   return pixels;
 }
 

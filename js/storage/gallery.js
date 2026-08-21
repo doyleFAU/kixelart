@@ -5,7 +5,7 @@ import {
 } from "../config.js";
 import { state } from "../state.js";
 import { el } from "../elements.js";
-import { clonePixels, countPaintedPixels } from "../utils/pixels.js";
+import { clonePixels } from "../utils/pixels.js";
 import {
   createGalleryId,
   sanitizeGalleryId,
@@ -88,32 +88,21 @@ function setGalleryItem(id, item) {
 
 async function loadGalleryItem(safeId) {
   let item = readRawGalleryItem(safeId);
-  if (item && countPaintedPixels(item.pixels) > 0) {
-    return item;
-  }
+  if (item) return item;
 
-  if (!state.authUser) {
-    return item;
-  }
+  if (!state.authUser) return null;
 
   await waitForGallerySync();
-
   item = readRawGalleryItem(safeId);
-  if (item && countPaintedPixels(item.pixels) > 0) {
-    return item;
-  }
+  if (item) return item;
 
   const cloud = await queryCloudGalleryItem(safeId);
-  if (!cloud) {
-    return item;
-  }
-
-  if (countPaintedPixels(cloud.pixels) > countPaintedPixels(item?.pixels ?? [])) {
+  if (cloud) {
     setGalleryItem(safeId, cloud);
     return cloud;
   }
 
-  return item ?? cloud;
+  return null;
 }
 
 function removeGalleryItem(id) {

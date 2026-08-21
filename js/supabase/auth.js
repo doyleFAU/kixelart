@@ -85,7 +85,12 @@ export async function initAuth() {
   const { data: { session } } = await supabase.auth.getSession();
   await onSession(session);
 
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "TOKEN_REFRESHED") {
+      state.authUser = session?.user ?? null;
+      updateAuthUI();
+      return;
+    }
     sessionQueue = sessionQueue
       .then(() => onSession(session))
       .catch((err) => console.warn("Auth session handler failed:", err));

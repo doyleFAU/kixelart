@@ -19,7 +19,7 @@ import { initAuth } from "./supabase/auth.js";
 import { state } from "./state.js";
 import { el } from "./elements.js";
 
-function init() {
+async function init() {
   initElements();
   drawColorWheel();
 
@@ -41,7 +41,7 @@ function init() {
   bindUI();
   bindTheme();
   initGalleryUI();
-  initAuth();
+  await initAuth();
 
   updateCursorMode();
   renderGallery();

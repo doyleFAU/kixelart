@@ -36,6 +36,7 @@ function shouldPreferCloudItem(localItem, cloudItem) {
   const localPainted = countPaintedPixels(localItem.pixels);
   const cloudPainted = countPaintedPixels(cloudItem.pixels);
 
+  if (localPainted > 0 && cloudPainted === 0) return false;
   if (cloudPainted > localPainted) return true;
   if (localPainted > cloudPainted) return false;
   return cloudItem.updatedAt >= localItem.updatedAt;
@@ -221,7 +222,11 @@ export async function syncGalleryWithCloud() {
       const cloudItem = cloudRowToItem(row);
       if (!cloudItem) continue;
       const existing = merged.get(cloudItem.id);
-      if (!existing || shouldPreferCloudItem(existing, cloudItem)) {
+      if (!existing) {
+        merged.set(cloudItem.id, cloudItem);
+        continue;
+      }
+      if (shouldPreferCloudItem(existing, cloudItem)) {
         merged.set(cloudItem.id, cloudItem);
       }
     }
@@ -259,7 +264,11 @@ export async function syncGalleryWithCloud() {
   }
 }
 
-export async function fetchGalleryItemFromCloud(id) {
+export async function waitForGallerySync() {
+  if (syncInFlight) await syncInFlight;
+}
+
+export async function queryCloudGalleryItem(id) {
   const safeId = sanitizeGalleryId(id);
   if (!safeId || !isSignedIn()) return null;
 
@@ -283,13 +292,21 @@ export async function fetchGalleryItemFromCloud(id) {
     }
     if (!data) return null;
 
-    const item = cloudRowToItem(data);
-    if (!item) return null;
-
-    localStorage.setItem(GALLERY_ITEM_PREFIX + safeId, JSON.stringify(storagePayload(item)));
-    return item;
+    return cloudRowToItem(data);
   } catch (err) {
     console.warn("Cloud gallery fetch failed:", err);
     return null;
   }
+}
+
+export async function fetchGalleryItemFromCloud(id) {
+  const item = await queryCloudGalleryItem(id);
+  const safeId = sanitizeGalleryId(id);
+  if (!item || !safeId) return null;
+
+  localStorage.setItem(
+    GALLERY_ITEM_PREFIX + safeId,
+    JSON.stringify(storagePayload(item))
+  );
+  return item;
 }

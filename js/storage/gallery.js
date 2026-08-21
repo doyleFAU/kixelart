@@ -20,7 +20,8 @@ import { applyProjectData, scheduleSave } from "./project.js";
 import {
   pushGalleryItemToCloud,
   deleteGalleryItemFromCloud,
-  fetchGalleryItemFromCloud,
+  waitForGallerySync,
+  queryCloudGalleryItem,
 } from "../supabase/gallery-sync.js";
 
 let galleryUiBound = false;
@@ -86,19 +87,32 @@ function setGalleryItem(id, item) {
 }
 
 async function resolveGalleryItem(safeId) {
+  if (state.authUser) {
+    await waitForGallerySync();
+  }
+
   const local = readRawGalleryItem(safeId);
+  const localPainted = local ? countPaintedPixels(local.pixels) : 0;
+
+  // Good local copy — use it and never overwrite with a cloud fetch.
+  if (local && localPainted > 0) return local;
+
   if (!state.authUser) return local;
 
-  const cloud = await fetchGalleryItemFromCloud(safeId);
-  if (!local) return cloud;
+  const cloud = await queryCloudGalleryItem(safeId);
   if (!cloud) return local;
 
-  const localPainted = countPaintedPixels(local.pixels);
   const cloudPainted = countPaintedPixels(cloud.pixels);
-
-  if (cloudPainted > localPainted) return cloud;
-  if (localPainted > cloudPainted) return local;
-  return cloud.updatedAt >= local.updatedAt ? cloud : local;
+  if (cloudPainted > localPainted) {
+    setGalleryItem(safeId, cloud);
+    return cloud;
+  }
+  if (localPainted > cloudPainted && local) return local;
+  if (cloud.updatedAt >= (local?.updatedAt ?? 0)) {
+    setGalleryItem(safeId, cloud);
+    return cloud;
+  }
+  return local;
 }
 
 function removeGalleryItem(id) {

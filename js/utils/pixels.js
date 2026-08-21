@@ -1,3 +1,5 @@
+import { sanitizeHexColor } from "./security.js";
+
 export function clonePixels(data) {
   return data.map((row) => [...row]);
 }
@@ -8,7 +10,8 @@ export function countPaintedPixels(pixels) {
   for (const row of pixels) {
     if (!Array.isArray(row)) continue;
     for (const cell of row) {
-      if (cell) count++;
+      if (cell == null || cell === "") continue;
+      if (sanitizeHexColor(typeof cell === "string" ? cell : String(cell))) count++;
     }
   }
   return count;
